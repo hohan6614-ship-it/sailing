@@ -1,0 +1,1435 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>모임 가능 시간 달력</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --panel: #ffffff;
+      --line: #e2e8f0;
+      --text: #0f172a;
+      --muted: #64748b;
+      --accent: #0f172a;
+      --good: #16a34a;
+      --good2: #86efac;
+      --mid: #fcd34d;
+      --bad: #fda4af;
+      --zero: #e2e8f0;
+      --drag: #0f172a;
+      --shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    h1, h2, h3, p { margin: 0; }
+    button, input, select {
+      font: inherit;
+    }
+
+    .app {
+      max-width: 1560px;
+      margin: 0 auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .title h1 {
+      font-size: 30px;
+      line-height: 1.1;
+      margin-bottom: 6px;
+    }
+
+    .title p {
+      color: var(--muted);
+      font-size: 14px;
+      max-width: 900px;
+      line-height: 1.5;
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .pill {
+      background: #eef2ff;
+      color: #3730a3;
+      border-radius: 999px;
+      padding: 7px 12px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 400px minmax(0, 1fr);
+      gap: 20px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 18px 20px 12px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .panel-header h2 {
+      font-size: 18px;
+    }
+
+    .panel-header p {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .panel-body {
+      padding: 18px 20px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .stack { display: flex; flex-direction: column; gap: 10px; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .field { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 120px; }
+    .field label { font-size: 12px; color: var(--muted); font-weight: 700; }
+
+    input, select, button {
+      height: 40px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: white;
+      padding: 0 12px;
+    }
+
+    button {
+      cursor: pointer;
+      font-weight: 700;
+      background: white;
+    }
+
+    button.primary {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+
+    button.danger {
+      background: #fff1f2;
+      color: #be123c;
+      border-color: #fecdd3;
+    }
+
+    button.ghost {
+      background: #f8fafc;
+    }
+
+    .tiny {
+      height: 30px;
+      padding: 0 10px;
+      border-radius: 10px;
+      font-size: 12px;
+    }
+
+    .people-list, .rule-list, .recommend-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 260px;
+      overflow: auto;
+    }
+
+    .item {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      background: #fff;
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      font-size: 11px;
+      font-weight: 700;
+      background: #f8fafc;
+    }
+
+    .sub {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .main-right {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .toolbar {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .toolbar .field { min-width: 0; }
+
+    .editor-grid-wrap, .calendar-wrap {
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: white;
+    }
+
+    .editor-grid, .calendar-grid {
+      display: grid;
+      min-width: 1060px;
+    }
+
+    .editor-cell, .calendar-cell, .time-cell, .date-head {
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .date-head {
+      position: sticky;
+      top: 0;
+      z-index: 3;
+      background: white;
+      text-align: center;
+      padding: 8px 6px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .time-cell {
+      position: sticky;
+      left: 0;
+      z-index: 2;
+      background: white;
+      padding: 6px 8px;
+      font-size: 11px;
+      color: var(--muted);
+      min-height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .editor-cell {
+      min-height: 34px;
+      background: white;
+      cursor: crosshair;
+      transition: 0.08s;
+    }
+
+    .editor-cell:hover { background: #f8fafc; }
+    .editor-cell.blocked { background: #0f172a; }
+    .editor-cell.preview { background: #cbd5e1; }
+
+    .calendar-cell {
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 14px;
+      cursor: pointer;
+      transition: transform 0.08s ease;
+    }
+
+    .calendar-cell:hover { transform: scale(1.03); }
+    .calendar-cell.zero { background: var(--zero); color: #64748b; }
+    .calendar-cell.low { background: var(--bad); color: #4c0519; }
+    .calendar-cell.mid { background: var(--mid); color: #78350f; }
+    .calendar-cell.high { background: var(--good2); color: #14532d; }
+    .calendar-cell.full { background: var(--good); color: white; }
+
+    .legend {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .legend span.box {
+      width: 16px; height: 16px; display: inline-block; border-radius: 4px; border: 1px solid rgba(0,0,0,0.05);
+    }
+
+    .recommend-list .item {
+      align-items: start;
+      padding: 12px;
+    }
+
+    .recommend-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      width: 100%;
+      align-items: center;
+    }
+
+    .names {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 30;
+    }
+
+    .modal.open { display: flex; }
+    .modal-card {
+      background: white;
+      width: min(520px, 100%);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      border: 1px solid var(--line);
+    }
+    .modal-head {
+      padding: 18px 20px 12px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+    }
+    .modal-body {
+      padding: 18px 20px 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+    @media (max-width: 1180px) {
+      .grid { grid-template-columns: 1fr; }
+      .toolbar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 680px) {
+      .app { padding: 14px; }
+      .toolbar { grid-template-columns: 1fr; }
+      .title h1 { font-size: 24px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="topbar">
+      <div class="title">
+        <h1>모임 가능 시간 달력</h1>
+        <p>
+          GitHub Pages에 <span class="mono">index.html</span> 하나만 올려도 작동하는 버전입니다.
+          사람별 주간 고정 불가 / 특정 날짜 불가를 입력하면, 30분 단위로 몇 명이 가능한지 달력처럼 표시하고,
+          칸을 클릭하면 가능한 이름을 보여줍니다. 같은 사람이 서로 다른 캠퍼스 수업을 오가면 이동시간도 자동 차단합니다.
+        </p>
+      </div>
+      <div class="pill-row">
+        <span class="pill">단일 파일</span>
+        <span class="pill">드래그 입력</span>
+        <span class="pill">이동시간 자동 차단</span>
+        <span class="pill">최적 시간 추천</span>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div style="display:flex; flex-direction:column; gap:20px;">
+        <div class="panel">
+          <div class="panel-header">
+            <h2>1) 사람 관리</h2>
+            <p>이름과 소속 캠퍼스를 추가하세요. 캠퍼스 필터는 결과 달력과 추천에 반영됩니다.</p>
+          </div>
+          <div class="panel-body">
+            <div class="row">
+              <div class="field">
+                <label for="personName">이름</label>
+                <input id="personName" placeholder="예: 주환" />
+              </div>
+              <div class="field">
+                <label for="personCampus">소속 캠퍼스</label>
+                <select id="personCampus">
+                  <option>율전</option>
+                  <option>명륜</option>
+                </select>
+              </div>
+            </div>
+            <div class="row">
+              <button class="primary" id="addPersonBtn">사람 추가</button>
+              <button class="ghost" id="seedBtn">예시 데이터 넣기</button>
+              <button class="ghost" id="clearAllBtn">전체 초기화</button>
+            </div>
+            <div class="people-list" id="peopleList"></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h2>2) 입력 모드</h2>
+            <p>
+              아래 편집 달력에서 <b>드래그로 여러 칸을 한 번에 불가 처리</b>할 수 있습니다.
+              모드는 <b>주간 고정 불가</b> 또는 <b>특정 날짜 불가</b> 중 하나를 선택하세요.
+            </p>
+          </div>
+          <div class="panel-body">
+            <div class="field">
+              <label for="editorPerson">입력 대상 사람</label>
+              <select id="editorPerson"></select>
+            </div>
+            <div class="row">
+              <div class="field">
+                <label for="editorMode">입력 종류</label>
+                <select id="editorMode">
+                  <option value="weekly">주간 고정 불가</option>
+                  <option value="date">특정 날짜 불가</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="editorCampus">해당 일정 캠퍼스</label>
+                <select id="editorCampus">
+                  <option>율전</option>
+                  <option>명륜</option>
+                </select>
+              </div>
+            </div>
+            <div class="row" id="editorDateRow" style="display:none;">
+              <div class="field">
+                <label for="editorDate">특정 날짜</label>
+                <input type="date" id="editorDate" />
+              </div>
+              <div class="field">
+                <label>&nbsp;</label>
+                <button class="ghost tiny" id="copyDayToAllVisibleBtn">선택 날짜 보기로 이동</button>
+              </div>
+            </div>
+            <div class="sub">
+              드래그 시작 전에 빈 칸이면 <b>불가 추가</b>, 이미 막힌 칸이면 <b>불가 해제</b> 모드로 동작합니다.
+            </div>
+            <div class="editor-grid-wrap">
+              <div class="editor-grid" id="editorGrid"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h2>3) 현재 입력된 불가 규칙</h2>
+            <p>사유는 저장하지 않고, 누가 언제 불가한지만 반영합니다.</p>
+          </div>
+          <div class="panel-body">
+            <div class="rule-list" id="ruleList"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="main-right">
+        <div class="panel">
+          <div class="panel-header">
+            <h2>보기 및 계산 설정</h2>
+            <p>캠퍼스 필터, 표시 기간, 이동시간 자동 차단 시간을 바꿀 수 있습니다.</p>
+          </div>
+          <div class="panel-body">
+            <div class="toolbar">
+              <div class="field">
+                <label for="viewCampus">캠퍼스 보기</label>
+                <select id="viewCampus">
+                  <option>전체</option>
+                  <option>율전</option>
+                  <option>명륜</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="viewStartDate">시작 날짜</label>
+                <input type="date" id="viewStartDate" />
+              </div>
+              <div class="field">
+                <label for="viewWeeks">표시 주 수</label>
+                <select id="viewWeeks">
+                  <option value="1">1주</option>
+                  <option value="2" selected>2주</option>
+                  <option value="3">3주</option>
+                  <option value="4">4주</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="travelMinutes">캠퍼스 이동 차단(분)</label>
+                <select id="travelMinutes">
+                  <option value="0">0분</option>
+                  <option value="30">30분</option>
+                  <option value="60" selected>60분</option>
+                  <option value="90">90분</option>
+                  <option value="120">120분</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="recommendCount">추천 개수</label>
+                <select id="recommendCount">
+                  <option value="5">5개</option>
+                  <option value="10" selected>10개</option>
+                  <option value="20">20개</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="mergeSlots">추천 묶기</label>
+                <select id="mergeSlots">
+                  <option value="off">30분 단위 그대로</option>
+                  <option value="on" selected>연속 시간대 묶기</option>
+                </select>
+              </div>
+            </div>
+            <div class="legend">
+              <span><span class="box" style="background:#e2e8f0"></span> 0명</span>
+              <span><span class="box" style="background:#fda4af"></span> 적음</span>
+              <span><span class="box" style="background:#fcd34d"></span> 중간</span>
+              <span><span class="box" style="background:#86efac"></span> 많음</span>
+              <span><span class="box" style="background:#16a34a"></span> 전원 가능</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h2>30분 단위 결과 달력</h2>
+            <p>각 칸의 숫자는 그 시간에 가능한 인원 수입니다. 클릭하면 가능한 이름이 열립니다.</p>
+          </div>
+          <div class="panel-body">
+            <div class="sub" id="summaryText"></div>
+            <div class="calendar-wrap">
+              <div class="calendar-grid" id="calendarGrid"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h2>자동 추천 시간</h2>
+            <p>가장 많은 인원이 모일 수 있는 시간대를 자동 정렬합니다.</p>
+          </div>
+          <div class="panel-body">
+            <div class="recommend-list" id="recommendList"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="detailModal">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3>참여 가능한 사람</h3>
+        <button class="tiny" id="closeModalBtn">닫기</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+    </div>
+  </div>
+
+  <script>
+    const DAYS = ["월", "화", "수", "목", "금", "토", "일"];
+    const CAMPUSES = ["율전", "명륜"];
+    const SLOT_MIN = 30;
+    const START_HOUR = 9;
+    const END_HOUR = 23;
+
+    const state = {
+      people: [],
+      weeklyRules: [],
+      dateRules: [],
+      viewCampus: "전체",
+      startDate: getMonday(new Date()),
+      weeks: 2,
+      travelMinutes: 60,
+      recommendCount: 10,
+      mergeRecommend: true,
+      editorMode: "weekly",
+      editorPersonId: "",
+      editorCampus: "율전",
+      editorDate: toISODate(new Date()),
+      drag: {
+        active: false,
+        mode: null,
+        touched: new Set(),
+      },
+      selectedDetail: null,
+    };
+
+    const els = {
+      personName: document.getElementById("personName"),
+      personCampus: document.getElementById("personCampus"),
+      addPersonBtn: document.getElementById("addPersonBtn"),
+      seedBtn: document.getElementById("seedBtn"),
+      clearAllBtn: document.getElementById("clearAllBtn"),
+      peopleList: document.getElementById("peopleList"),
+      editorPerson: document.getElementById("editorPerson"),
+      editorMode: document.getElementById("editorMode"),
+      editorCampus: document.getElementById("editorCampus"),
+      editorDate: document.getElementById("editorDate"),
+      editorDateRow: document.getElementById("editorDateRow"),
+      copyDayToAllVisibleBtn: document.getElementById("copyDayToAllVisibleBtn"),
+      editorGrid: document.getElementById("editorGrid"),
+      ruleList: document.getElementById("ruleList"),
+      viewCampus: document.getElementById("viewCampus"),
+      viewStartDate: document.getElementById("viewStartDate"),
+      viewWeeks: document.getElementById("viewWeeks"),
+      travelMinutes: document.getElementById("travelMinutes"),
+      recommendCount: document.getElementById("recommendCount"),
+      mergeSlots: document.getElementById("mergeSlots"),
+      summaryText: document.getElementById("summaryText"),
+      calendarGrid: document.getElementById("calendarGrid"),
+      recommendList: document.getElementById("recommendList"),
+      detailModal: document.getElementById("detailModal"),
+      modalBody: document.getElementById("modalBody"),
+      closeModalBtn: document.getElementById("closeModalBtn"),
+    };
+
+    function uid(prefix = "id") {
+      return prefix + "_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16);
+    }
+
+    function toISODate(date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, "0");
+      const d = String(date.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    }
+
+    function parseISODate(iso) {
+      const [y, m, d] = iso.split("-").map(Number);
+      return new Date(y, m - 1, d);
+    }
+
+    function getMonday(date) {
+      const d = new Date(date);
+      const day = d.getDay();
+      const diff = day === 0 ? -6 : 1 - day;
+      d.setDate(d.getDate() + diff);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    }
+
+    function addDays(date, days) {
+      const d = new Date(date);
+      d.setDate(d.getDate() + days);
+      return d;
+    }
+
+    function dateLabel(date) {
+      const mm = String(date.getMonth() + 1).padStart(2, "0");
+      const dd = String(date.getDate()).padStart(2, "0");
+      const day = DAYS[(date.getDay() + 6) % 7];
+      return `${mm}/${dd} (${day})`;
+    }
+
+    function weekdayIndexFromDate(date) {
+      return (date.getDay() + 6) % 7;
+    }
+
+    function timeOptions() {
+      const arr = [];
+      for (let h = START_HOUR; h < END_HOUR; h++) {
+        arr.push(h * 60);
+        arr.push(h * 60 + 30);
+      }
+      return arr;
+    }
+
+    const SLOT_STARTS = timeOptions();
+
+    function minToLabel(min) {
+      const h = String(Math.floor(min / 60)).padStart(2, "0");
+      const m = String(min % 60).padStart(2, "0");
+      return `${h}:${m}`;
+    }
+
+    function overlap(aStart, aEnd, bStart, bEnd) {
+      return aStart < bEnd && bStart < aEnd;
+    }
+
+    function visiblePeople() {
+      if (state.viewCampus === "전체") return state.people.slice();
+      return state.people.filter((p) => p.homeCampus === state.viewCampus);
+    }
+
+    function viewDates() {
+      const out = [];
+      for (let i = 0; i < state.weeks * 7; i++) out.push(addDays(state.startDate, i));
+      return out;
+    }
+
+    function getPerson(id) {
+      return state.people.find((p) => p.id === id);
+    }
+
+    function addPerson(name, homeCampus) {
+      const clean = name.trim();
+      if (!clean) return;
+      const person = { id: uid("p"), name: clean, homeCampus };
+      state.people.push(person);
+      if (!state.editorPersonId) state.editorPersonId = person.id;
+      state.editorCampus = homeCampus;
+      render();
+    }
+
+    function removePerson(personId) {
+      state.people = state.people.filter((p) => p.id !== personId);
+      state.weeklyRules = state.weeklyRules.filter((r) => r.personId !== personId);
+      state.dateRules = state.dateRules.filter((r) => r.personId !== personId);
+      if (state.editorPersonId === personId) state.editorPersonId = state.people[0]?.id || "";
+      render();
+    }
+
+    function clearAll() {
+      state.people = [];
+      state.weeklyRules = [];
+      state.dateRules = [];
+      state.editorPersonId = "";
+      render();
+    }
+
+    function ruleKey(rule) {
+      if (rule.type === "weekly") return `${rule.personId}|weekly|${rule.dayIndex}|${rule.startMin}|${rule.endMin}|${rule.campus}`;
+      return `${rule.personId}|date|${rule.dateISO}|${rule.startMin}|${rule.endMin}|${rule.campus}`;
+    }
+
+    function hasWeeklyCell(personId, dayIndex, startMin, campus) {
+      return state.weeklyRules.some(
+        (r) => r.personId === personId && r.dayIndex === dayIndex && r.startMin === startMin && r.endMin === startMin + SLOT_MIN && r.campus === campus
+      );
+    }
+
+    function hasDateCell(personId, dateISO, startMin, campus) {
+      return state.dateRules.some(
+        (r) => r.personId === personId && r.dateISO === dateISO && r.startMin === startMin && r.endMin === startMin + SLOT_MIN && r.campus === campus
+      );
+    }
+
+    function toggleWeeklyCell(personId, dayIndex, startMin, campus, forceMode = null) {
+      const exists = hasWeeklyCell(personId, dayIndex, startMin, campus);
+      const shouldAdd = forceMode ? forceMode === "add" : !exists;
+      if (shouldAdd && !exists) {
+        state.weeklyRules.push({ id: uid("w"), type: "weekly", personId, dayIndex, startMin, endMin: startMin + SLOT_MIN, campus });
+      }
+      if (!shouldAdd && exists) {
+        state.weeklyRules = state.weeklyRules.filter(
+          (r) => !(r.personId === personId && r.dayIndex === dayIndex && r.startMin === startMin && r.endMin === startMin + SLOT_MIN && r.campus === campus)
+        );
+      }
+    }
+
+    function toggleDateCell(personId, dateISO, startMin, campus, forceMode = null) {
+      const exists = hasDateCell(personId, dateISO, startMin, campus);
+      const shouldAdd = forceMode ? forceMode === "add" : !exists;
+      if (shouldAdd && !exists) {
+        state.dateRules.push({ id: uid("d"), type: "date", personId, dateISO, startMin, endMin: startMin + SLOT_MIN, campus });
+      }
+      if (!shouldAdd && exists) {
+        state.dateRules = state.dateRules.filter(
+          (r) => !(r.personId === personId && r.dateISO === dateISO && r.startMin === startMin && r.endMin === startMin + SLOT_MIN && r.campus === campus)
+        );
+      }
+    }
+
+    function groupedRulesForList() {
+      const weeklyMap = new Map();
+      const dateMap = new Map();
+
+      for (const r of state.weeklyRules) {
+        const key = `${r.personId}|${r.dayIndex}|${r.campus}`;
+        if (!weeklyMap.has(key)) weeklyMap.set(key, []);
+        weeklyMap.get(key).push(r.startMin);
+      }
+      for (const r of state.dateRules) {
+        const key = `${r.personId}|${r.dateISO}|${r.campus}`;
+        if (!dateMap.has(key)) dateMap.set(key, []);
+        dateMap.get(key).push(r.startMin);
+      }
+
+      const rows = [];
+      for (const [key, starts] of weeklyMap.entries()) {
+        const [personId, dayIndex, campus] = key.split("|");
+        const person = getPerson(personId);
+        rows.push({
+          id: key,
+          kind: "weekly",
+          label: `${person?.name || "(삭제됨)"} · ${DAYS[Number(dayIndex)]} · ${campus} · ${compressStarts(starts)}`,
+          remove() {
+            state.weeklyRules = state.weeklyRules.filter(
+              (r) => !(r.personId === personId && String(r.dayIndex) === dayIndex && r.campus === campus)
+            );
+            render();
+          },
+        });
+      }
+      for (const [key, starts] of dateMap.entries()) {
+        const [personId, dateISO, campus] = key.split("|");
+        const person = getPerson(personId);
+        rows.push({
+          id: key,
+          kind: "date",
+          label: `${person?.name || "(삭제됨)"} · ${dateISO} · ${campus} · ${compressStarts(starts)}`,
+          remove() {
+            state.dateRules = state.dateRules.filter(
+              (r) => !(r.personId === personId && r.dateISO === dateISO && r.campus === campus)
+            );
+            render();
+          },
+        });
+      }
+      return rows;
+    }
+
+    function compressStarts(starts) {
+      const sorted = [...new Set(starts)].sort((a, b) => a - b);
+      if (sorted.length === 0) return "없음";
+      const ranges = [];
+      let rangeStart = sorted[0];
+      let prev = sorted[0];
+      for (let i = 1; i < sorted.length; i++) {
+        const cur = sorted[i];
+        if (cur === prev + SLOT_MIN) {
+          prev = cur;
+          continue;
+        }
+        ranges.push(`${minToLabel(rangeStart)}-${minToLabel(prev + SLOT_MIN)}`);
+        rangeStart = cur;
+        prev = cur;
+      }
+      ranges.push(`${minToLabel(rangeStart)}-${minToLabel(prev + SLOT_MIN)}`);
+      return ranges.join(", ");
+    }
+
+    function effectiveRulesForPersonOnDate(personId, dateISO) {
+      const date = parseISODate(dateISO);
+      const dayIndex = weekdayIndexFromDate(date);
+      const travel = Number(state.travelMinutes) || 0;
+
+      const base = [];
+      for (const r of state.weeklyRules) {
+        if (r.personId === personId && r.dayIndex === dayIndex) {
+          base.push({ startMin: r.startMin, endMin: r.endMin, campus: r.campus, source: "weekly" });
+        }
+      }
+      for (const r of state.dateRules) {
+        if (r.personId === personId && r.dateISO === dateISO) {
+          base.push({ startMin: r.startMin, endMin: r.endMin, campus: r.campus, source: "date" });
+        }
+      }
+
+      const expanded = [...base];
+      if (travel > 0) {
+        for (let i = 0; i < base.length; i++) {
+          for (let j = 0; j < base.length; j++) {
+            if (i === j) continue;
+            const a = base[i];
+            const b = base[j];
+            if (!a.campus || !b.campus || a.campus === b.campus) continue;
+            if (a.endMin <= b.startMin && b.startMin - a.endMin <= travel) {
+              expanded.push({ startMin: a.endMin, endMin: b.startMin, campus: "이동", source: "travel" });
+            }
+          }
+        }
+      }
+
+      return mergeIntervals(expanded);
+    }
+
+    function mergeIntervals(items) {
+      if (!items.length) return [];
+      const sorted = items
+        .map((x) => ({ startMin: x.startMin, endMin: x.endMin, campus: x.campus, source: x.source }))
+        .sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
+      const out = [sorted[0]];
+      for (let i = 1; i < sorted.length; i++) {
+        const cur = sorted[i];
+        const last = out[out.length - 1];
+        if (cur.startMin <= last.endMin) {
+          last.endMin = Math.max(last.endMin, cur.endMin);
+          if (last.campus !== cur.campus) last.campus = "혼합";
+          continue;
+        }
+        out.push(cur);
+      }
+      return out;
+    }
+
+    function computeCalendarCells() {
+      const people = visiblePeople();
+      const dates = viewDates();
+      const result = [];
+      for (const date of dates) {
+        const dateISO = toISODate(date);
+        const dayRulesMap = new Map();
+        for (const p of people) {
+          dayRulesMap.set(p.id, effectiveRulesForPersonOnDate(p.id, dateISO));
+        }
+        for (const startMin of SLOT_STARTS) {
+          const endMin = startMin + SLOT_MIN;
+          const names = [];
+          for (const p of people) {
+            const blocks = dayRulesMap.get(p.id) || [];
+            const blocked = blocks.some((b) => overlap(startMin, endMin, b.startMin, b.endMin));
+            if (!blocked) names.push(p.name);
+          }
+          result.push({
+            dateISO,
+            label: dateLabel(date),
+            dayIndex: weekdayIndexFromDate(date),
+            startMin,
+            endMin,
+            key: `${dateISO}_${startMin}`,
+            availableCount: names.length,
+            availableNames: names,
+            total: people.length,
+          });
+        }
+      }
+      return result;
+    }
+
+    function cellClass(cell) {
+      if (cell.total === 0 || cell.availableCount === 0) return "zero";
+      const ratio = cell.availableCount / cell.total;
+      if (ratio === 1) return "full";
+      if (ratio >= 0.75) return "high";
+      if (ratio >= 0.5) return "mid";
+      return "low";
+    }
+
+    function computeRecommendations(cells) {
+      const ranked = [...cells].sort((a, b) => {
+        if (b.availableCount !== a.availableCount) return b.availableCount - a.availableCount;
+        return a.dateISO.localeCompare(b.dateISO) || a.startMin - b.startMin;
+      });
+
+      if (!state.mergeRecommend) return ranked.slice(0, state.recommendCount);
+
+      const merged = [];
+      for (const cell of ranked) {
+        const last = merged[merged.length - 1];
+        if (
+          last &&
+          last.availableCount === cell.availableCount &&
+          last.dateISO === cell.dateISO &&
+          last.endMin === cell.startMin &&
+          sameNames(last.availableNames, cell.availableNames)
+        ) {
+          last.endMin = cell.endMin;
+        } else {
+          merged.push({ ...cell });
+        }
+      }
+      merged.sort((a, b) => {
+        if (b.availableCount !== a.availableCount) return b.availableCount - a.availableCount;
+        const lenA = a.endMin - a.startMin;
+        const lenB = b.endMin - b.startMin;
+        if (lenB !== lenA) return lenB - lenA;
+        return a.dateISO.localeCompare(b.dateISO) || a.startMin - b.startMin;
+      });
+      return merged.slice(0, state.recommendCount);
+    }
+
+    function sameNames(a, b) {
+      if (a.length !== b.length) return false;
+      for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+      return true;
+    }
+
+    function renderPeople() {
+      els.peopleList.innerHTML = "";
+      if (!state.people.length) {
+        els.peopleList.innerHTML = '<div class="sub">아직 사람이 없습니다.</div>';
+        return;
+      }
+      for (const p of state.people) {
+        const div = document.createElement("div");
+        div.className = "item";
+        div.innerHTML = `
+          <div>
+            <div class="meta">
+              <strong>${escapeHtml(p.name)}</strong>
+              <span class="badge">${escapeHtml(p.homeCampus)}</span>
+            </div>
+          </div>
+        `;
+        const btn = document.createElement("button");
+        btn.className = "danger tiny";
+        btn.textContent = "삭제";
+        btn.onclick = () => removePerson(p.id);
+        div.appendChild(btn);
+        els.peopleList.appendChild(div);
+      }
+    }
+
+    function renderEditorPersonOptions() {
+      const opts = state.people.map((p) => `<option value="${p.id}">${escapeHtml(p.name)} (${escapeHtml(p.homeCampus)})</option>`).join("");
+      els.editorPerson.innerHTML = opts;
+      if (!state.people.length) {
+        els.editorPerson.innerHTML = "";
+        state.editorPersonId = "";
+        return;
+      }
+      if (!state.editorPersonId || !state.people.some((p) => p.id === state.editorPersonId)) {
+        state.editorPersonId = state.people[0].id;
+      }
+      els.editorPerson.value = state.editorPersonId;
+      const person = getPerson(state.editorPersonId);
+      if (person) {
+        state.editorCampus = person.homeCampus;
+        els.editorCampus.value = state.editorCampus;
+      }
+    }
+
+    function renderRuleList() {
+      const rows = groupedRulesForList();
+      els.ruleList.innerHTML = "";
+      if (!rows.length) {
+        els.ruleList.innerHTML = '<div class="sub">아직 입력된 불가 시간이 없습니다.</div>';
+        return;
+      }
+      for (const row of rows) {
+        const div = document.createElement("div");
+        div.className = "item";
+        div.innerHTML = `
+          <div>
+            <div class="meta">
+              <span class="badge">${row.kind === "weekly" ? "주간" : "특정날짜"}</span>
+            </div>
+            <div class="sub" style="margin-top:4px; color:#0f172a;">${escapeHtml(row.label)}</div>
+          </div>
+        `;
+        const btn = document.createElement("button");
+        btn.className = "danger tiny";
+        btn.textContent = "삭제";
+        btn.onclick = row.remove;
+        div.appendChild(btn);
+        els.ruleList.appendChild(div);
+      }
+    }
+
+    function renderEditorGrid() {
+      const mode = state.editorMode;
+      els.editorDateRow.style.display = mode === "date" ? "flex" : "none";
+
+      const columns = mode === "weekly" ? DAYS.length : viewDates().length;
+      els.editorGrid.style.gridTemplateColumns = `90px repeat(${columns}, minmax(70px, 1fr))`;
+      const frag = document.createDocumentFragment();
+
+      const topLeft = document.createElement("div");
+      topLeft.className = "date-head";
+      topLeft.textContent = mode === "weekly" ? "시간 / 요일" : "시간 / 날짜";
+      frag.appendChild(topLeft);
+
+      if (mode === "weekly") {
+        DAYS.forEach((d) => {
+          const head = document.createElement("div");
+          head.className = "date-head";
+          head.textContent = d;
+          frag.appendChild(head);
+        });
+      } else {
+        for (const d of viewDates()) {
+          const head = document.createElement("div");
+          head.className = "date-head";
+          head.innerHTML = `<div>${dateLabel(d).split(" ")[0]}</div><div style="font-size:11px; color:#64748b; margin-top:2px;">${dateLabel(d).split(" ")[1] || ""}</div>`;
+          frag.appendChild(head);
+        }
+      }
+
+      for (const startMin of SLOT_STARTS) {
+        const time = document.createElement("div");
+        time.className = "time-cell";
+        time.textContent = minToLabel(startMin);
+        frag.appendChild(time);
+
+        if (mode === "weekly") {
+          DAYS.forEach((_, dayIndex) => {
+            frag.appendChild(makeEditorCell({ mode, dayIndex, startMin }));
+          });
+        } else {
+          for (const d of viewDates()) {
+            frag.appendChild(makeEditorCell({ mode, dateISO: toISODate(d), startMin }));
+          }
+        }
+      }
+
+      els.editorGrid.innerHTML = "";
+      els.editorGrid.appendChild(frag);
+    }
+
+    function makeEditorCell(payload) {
+      const div = document.createElement("div");
+      div.className = "editor-cell";
+      const personId = state.editorPersonId;
+      const campus = state.editorCampus;
+      const blocked = payload.mode === "weekly"
+        ? hasWeeklyCell(personId, payload.dayIndex, payload.startMin, campus)
+        : hasDateCell(personId, payload.dateISO, payload.startMin, campus);
+      if (blocked) div.classList.add("blocked");
+
+      div.dataset.mode = payload.mode;
+      if (payload.dayIndex != null) div.dataset.dayIndex = payload.dayIndex;
+      if (payload.dateISO) div.dataset.dateIso = payload.dateISO;
+      div.dataset.startMin = payload.startMin;
+
+      div.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        if (!state.editorPersonId) return;
+        const exists = payload.mode === "weekly"
+          ? hasWeeklyCell(personId, payload.dayIndex, payload.startMin, campus)
+          : hasDateCell(personId, payload.dateISO, payload.startMin, campus);
+        state.drag.active = true;
+        state.drag.mode = exists ? "remove" : "add";
+        state.drag.touched = new Set();
+        touchEditorCell(div);
+      });
+
+      div.addEventListener("mouseenter", () => {
+        if (!state.drag.active) return;
+        touchEditorCell(div);
+      });
+
+      return div;
+    }
+
+    function touchEditorCell(div) {
+      const key = `${div.dataset.mode}|${div.dataset.dayIndex || ""}|${div.dataset.dateIso || ""}|${div.dataset.startMin}|${state.editorPersonId}|${state.editorCampus}`;
+      if (state.drag.touched.has(key)) return;
+      state.drag.touched.add(key);
+      const startMin = Number(div.dataset.startMin);
+      if (div.dataset.mode === "weekly") {
+        toggleWeeklyCell(state.editorPersonId, Number(div.dataset.dayIndex), startMin, state.editorCampus, state.drag.mode);
+      } else {
+        toggleDateCell(state.editorPersonId, div.dataset.dateIso, startMin, state.editorCampus, state.drag.mode);
+      }
+      render();
+    }
+
+    function renderCalendar() {
+      const dates = viewDates();
+      const cells = computeCalendarCells();
+      const cellMap = new Map(cells.map((c) => [c.key, c]));
+      const total = visiblePeople().length;
+
+      els.summaryText.textContent = `현재 보기: ${state.viewCampus} · 대상 ${total}명 · 표시 ${dates.length}일 · 캠퍼스 이동 자동 차단 ${state.travelMinutes}분`;
+      els.calendarGrid.style.gridTemplateColumns = `90px repeat(${dates.length}, minmax(72px, 1fr))`;
+
+      const frag = document.createDocumentFragment();
+      const topLeft = document.createElement("div");
+      topLeft.className = "date-head";
+      topLeft.textContent = "시간";
+      frag.appendChild(topLeft);
+
+      for (const d of dates) {
+        const head = document.createElement("div");
+        head.className = "date-head";
+        head.innerHTML = `<div>${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}</div><div style="font-size:11px; color:#64748b; margin-top:2px;">${DAYS[weekdayIndexFromDate(d)]}</div>`;
+        frag.appendChild(head);
+      }
+
+      for (const startMin of SLOT_STARTS) {
+        const time = document.createElement("div");
+        time.className = "time-cell";
+        time.textContent = minToLabel(startMin);
+        frag.appendChild(time);
+
+        for (const d of dates) {
+          const key = `${toISODate(d)}_${startMin}`;
+          const cell = cellMap.get(key) || { availableCount: 0, availableNames: [], total, dateISO: toISODate(d), startMin, endMin: startMin + SLOT_MIN };
+          const btn = document.createElement("div");
+          btn.className = `calendar-cell ${cellClass(cell)}`;
+          btn.textContent = cell.availableCount;
+          btn.title = `${cell.dateISO} ${minToLabel(cell.startMin)}-${minToLabel(cell.endMin)}`;
+          btn.onclick = () => openDetail(cell);
+          frag.appendChild(btn);
+        }
+      }
+
+      els.calendarGrid.innerHTML = "";
+      els.calendarGrid.appendChild(frag);
+      renderRecommendations(cells);
+    }
+
+    function renderRecommendations(cells) {
+      const recs = computeRecommendations(cells);
+      els.recommendList.innerHTML = "";
+      if (!recs.length) {
+        els.recommendList.innerHTML = '<div class="sub">추천할 시간이 없습니다.</div>';
+        return;
+      }
+      for (const rec of recs) {
+        const div = document.createElement("div");
+        div.className = "item";
+        const names = rec.availableNames.map((n) => `<span class="badge">${escapeHtml(n)}</span>`).join("");
+        div.innerHTML = `
+          <div style="width:100%;">
+            <div class="recommend-top">
+              <div>
+                <div style="font-weight:800;">${escapeHtml(rec.dateISO)} · ${minToLabel(rec.startMin)}-${minToLabel(rec.endMin)}</div>
+                <div class="sub" style="margin-top:4px;">가능 인원 ${rec.availableCount}명 / ${rec.total}명</div>
+              </div>
+              <span class="badge">TOP</span>
+            </div>
+            <div class="names">${names || '<span class="sub">가능한 사람 없음</span>'}</div>
+          </div>
+        `;
+        els.recommendList.appendChild(div);
+      }
+    }
+
+    function openDetail(cell) {
+      state.selectedDetail = cell;
+      const names = cell.availableNames.map((n) => `<span class="badge">${escapeHtml(n)}</span>`).join("");
+      els.modalBody.innerHTML = `
+        <div class="item" style="padding:12px;">
+          <div>
+            <div class="meta">
+              <span class="badge">${escapeHtml(state.viewCampus)}</span>
+              <span class="badge">가능 ${cell.availableCount}명</span>
+            </div>
+            <div style="margin-top:8px; font-weight:800;">${escapeHtml(cell.dateISO)} ${minToLabel(cell.startMin)}-${minToLabel(cell.endMin)}</div>
+          </div>
+        </div>
+        <div>
+          <div style="font-weight:800; margin-bottom:8px;">참여 가능한 이름</div>
+          <div class="names">${names || '<span class="sub">가능한 사람이 없습니다.</span>'}</div>
+        </div>
+      `;
+      els.detailModal.classList.add("open");
+    }
+
+    function closeDetail() {
+      els.detailModal.classList.remove("open");
+      state.selectedDetail = null;
+    }
+
+    function syncInputsFromState() {
+      els.viewCampus.value = state.viewCampus;
+      els.viewStartDate.value = toISODate(state.startDate);
+      els.viewWeeks.value = String(state.weeks);
+      els.travelMinutes.value = String(state.travelMinutes);
+      els.recommendCount.value = String(state.recommendCount);
+      els.mergeSlots.value = state.mergeRecommend ? "on" : "off";
+      els.editorMode.value = state.editorMode;
+      els.editorCampus.value = state.editorCampus;
+      els.editorDate.value = state.editorDate;
+    }
+
+    function render() {
+      syncInputsFromState();
+      renderPeople();
+      renderEditorPersonOptions();
+      renderRuleList();
+      renderEditorGrid();
+      renderCalendar();
+      persist();
+    }
+
+    function seedDemo() {
+      if (state.people.length) return;
+      const a = { id: uid("p"), name: "주환", homeCampus: "율전" };
+      const b = { id: uid("p"), name: "혜원", homeCampus: "명륜" };
+      const c = { id: uid("p"), name: "가은", homeCampus: "율전" };
+      const d = { id: uid("p"), name: "서림", homeCampus: "명륜" };
+      state.people = [a, b, c, d];
+      state.editorPersonId = a.id;
+      state.editorCampus = a.homeCampus;
+      state.weeklyRules = [
+        { id: uid("w"), type: "weekly", personId: a.id, dayIndex: 0, startMin: 15 * 60, endMin: 17 * 60 + 30, campus: "율전" },
+        { id: uid("w"), type: "weekly", personId: a.id, dayIndex: 2, startMin: 12 * 60, endMin: 13 * 60, campus: "명륜" },
+        { id: uid("w"), type: "weekly", personId: b.id, dayIndex: 0, startMin: 18 * 60 + 30, endMin: 20 * 60, campus: "명륜" },
+        { id: uid("w"), type: "weekly", personId: c.id, dayIndex: 1, startMin: 10 * 60 + 30, endMin: 12 * 60, campus: "율전" },
+        { id: uid("w"), type: "weekly", personId: d.id, dayIndex: 3, startMin: 13 * 60, endMin: 15 * 60, campus: "명륜" },
+      ];
+      state.dateRules = [
+        { id: uid("d"), type: "date", personId: a.id, dateISO: toISODate(addDays(state.startDate, 4)), startMin: 9 * 60, endMin: 12 * 60, campus: "율전" },
+        { id: uid("d"), type: "date", personId: b.id, dateISO: toISODate(addDays(state.startDate, 5)), startMin: 13 * 60, endMin: 16 * 60, campus: "명륜" },
+      ];
+      render();
+    }
+
+    function persist() {
+      localStorage.setItem("group_availability_single_html_v1", JSON.stringify({
+        people: state.people,
+        weeklyRules: state.weeklyRules,
+        dateRules: state.dateRules,
+        viewCampus: state.viewCampus,
+        startDate: toISODate(state.startDate),
+        weeks: state.weeks,
+        travelMinutes: state.travelMinutes,
+        recommendCount: state.recommendCount,
+        mergeRecommend: state.mergeRecommend,
+        editorMode: state.editorMode,
+        editorPersonId: state.editorPersonId,
+        editorCampus: state.editorCampus,
+        editorDate: state.editorDate,
+      }));
+    }
+
+    function loadPersisted() {
+      const raw = localStorage.getItem("group_availability_single_html_v1");
+      if (!raw) return;
+      try {
+        const data = JSON.parse(raw);
+        state.people = Array.isArray(data.people) ? data.people : [];
+        state.weeklyRules = Array.isArray(data.weeklyRules) ? data.weeklyRules : [];
+        state.dateRules = Array.isArray(data.dateRules) ? data.dateRules : [];
+        state.viewCampus = data.viewCampus || "전체";
+        state.startDate = data.startDate ? parseISODate(data.startDate) : getMonday(new Date());
+        state.weeks = Number(data.weeks) || 2;
+        state.travelMinutes = Number(data.travelMinutes) || 60;
+        state.recommendCount = Number(data.recommendCount) || 10;
+        state.mergeRecommend = data.mergeRecommend !== false;
+        state.editorMode = data.editorMode || "weekly";
+        state.editorPersonId = data.editorPersonId || "";
+        state.editorCampus = data.editorCampus || "율전";
+        state.editorDate = data.editorDate || toISODate(new Date());
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function bindEvents() {
+      els.addPersonBtn.addEventListener("click", () => {
+        addPerson(els.personName.value, els.personCampus.value);
+        els.personName.value = "";
+      });
+
+      els.seedBtn.addEventListener("click", seedDemo);
+      els.clearAllBtn.addEventListener("click", clearAll);
+
+      els.editorPerson.addEventListener("change", () => {
+        state.editorPersonId = els.editorPerson.value;
+        const p = getPerson(state.editorPersonId);
+        if (p) state.editorCampus = p.homeCampus;
+        render();
+      });
+
+      els.editorMode.addEventListener("change", () => {
+        state.editorMode = els.editorMode.value;
+        render();
+      });
+
+      els.editorCampus.addEventListener("change", () => {
+        state.editorCampus = els.editorCampus.value;
+        render();
+      });
+
+      els.editorDate.addEventListener("change", () => {
+        state.editorDate = els.editorDate.value;
+      });
+
+      els.copyDayToAllVisibleBtn.addEventListener("click", () => {
+        if (!state.editorDate) return;
+        state.startDate = getMonday(parseISODate(state.editorDate));
+        render();
+      });
+
+      els.viewCampus.addEventListener("change", () => {
+        state.viewCampus = els.viewCampus.value;
+        render();
+      });
+      els.viewStartDate.addEventListener("change", () => {
+        state.startDate = parseISODate(els.viewStartDate.value);
+        render();
+      });
+      els.viewWeeks.addEventListener("change", () => {
+        state.weeks = Number(els.viewWeeks.value);
+        render();
+      });
+      els.travelMinutes.addEventListener("change", () => {
+        state.travelMinutes = Number(els.travelMinutes.value);
+        render();
+      });
+      els.recommendCount.addEventListener("change", () => {
+        state.recommendCount = Number(els.recommendCount.value);
+        render();
+      });
+      els.mergeSlots.addEventListener("change", () => {
+        state.mergeRecommend = els.mergeSlots.value === "on";
+        render();
+      });
+
+      document.addEventListener("mouseup", () => {
+        state.drag.active = false;
+        state.drag.mode = null;
+        state.drag.touched = new Set();
+      });
+
+      els.closeModalBtn.addEventListener("click", closeDetail);
+      els.detailModal.addEventListener("click", (e) => {
+        if (e.target === els.detailModal) closeDetail();
+      });
+    }
+
+    loadPersisted();
+    bindEvents();
+    render();
+  </script>
+</body>
+</html>
